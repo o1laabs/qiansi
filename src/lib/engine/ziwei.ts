@@ -35,18 +35,27 @@ export function calcZiwei(inp:ZiweiInput): ZiweiResult {
   const yinj=wuhu_yin(yg); const mingGan=(yinj + ((ming-2+12)%12))%10;
   const minggz=G[mingGan]+Z[ming];
   const ju=nayinJu(mingGan,ming);
-  // 紫微: 五行局起宫(考据) - start, 每局星进格
-  const start=(JU_START[ju]!==undefined?JU_START[ju]:2); const n=JU_N[ju]||4;
-  const ziweiPos=(start - Math.floor((dd-1)/n)+12)%12;
+  // 紫微定位：复刻《紫微斗数全书》"起紫微星诀"（iztro getStartIndex 同源算法）
+  //   局数除日数→商数宫前走；日数小於局，还直宫中守（加最小数至整除，奇逆偶顺）
+  // 宫位索引：本文件 Z="子丑寅卯..."（子=0），紫微口诀从寅起（寅=索引2）
+  const n=JU_N[ju]||4;
+  let offset=-1, quotient=1, div;
+  do { offset++; div=dd+offset; quotient=Math.floor(div/n); } while (div%n!==0);
+  let q=quotient%12;
+  let ziweiIz=q-1;                 // iztro 体系：寅=0
+  ziweiIz = (offset%2===0) ? ziweiIz+offset : ziweiIz-offset; // 偶顺奇逆
+  // fixIndex + 换算到本文件体系（寅=索引2）
+  const ziweiPos=(((ziweiIz%12)+12)%12 + 2) % 12;
   const ziwei=Z[ziweiPos]; const tianfu=Z[(4-ziweiPos+12)%12];
-  // 布宫: 紫微系(逆,含空宫) + 天府系(顺), offset表
-  const zwM={紫微:0,天机:1,太阳:3,武曲:4,天同:5,廉贞:7} as Record<string,number>;
-  const tfM={天府:0,太阴:1,贪狼:2,巨门:3,天相:4,天梁:5,七杀:6,破军:7} as Record<string,number>;
   const tfPos=(4-ziweiPos+12)%12;
+  // 布宫: 复刻 iztro 安紫微/天府诸星诀（寅=索引2体系）
+  //   紫微系: [紫微,天机,空,太阳,武曲,天同,空,空,廉贞] 从紫微宫逆时针
+  //   天府系: [天府,太阴,贪狼,巨门,天相,天梁,七杀,空,空,空,破军] 从天府宫顺时针
+  const zwM=["紫微","天机","","太阳","武曲","天同","","","廉贞"] as string[];
+  const tfM=["天府","太阴","贪狼","巨门","天相","天梁","七杀","","","","破军"] as string[];
   const stars:Record<string,string[]>={}; for(let i=0;i<12;i++)stars[Z[i]]=[];
-  Object.entries(zwM).forEach(([k,o])=>{ stars[Z[(ziweiPos + o + 12)%12]].push(k); });
-  stars[Z[ziweiPos]]; // keep
-  Object.entries(tfM).forEach(([k,o])=>{ stars[Z[(tfPos + o + 12)%12]].push(k); });
+  zwM.forEach((k,i)=>{ if(k) stars[Z[((ziweiPos - i)%12+12)%12]].push(k); });
+  tfM.forEach((k,i)=>{ if(k) stars[Z[((tfPos + i)%12+12)%12]].push(k); });
   return { minggz, shengong: Z[shen], wuxingju: ju, ziwei, tianfu, stars, lunar: mm+"月"+dd+"日" };
 }
 
